@@ -2,14 +2,21 @@
 
 import { motion } from 'framer-motion';
 import { Cloud, Sun, Star, Sparkle, FloatingHeart } from './scenes/Decorations';
-import type { Story } from '@/lib/storybook/stories';
+import type { Story, Language, BilingualText } from '@/lib/storybook/stories';
+import { ui } from '@/lib/storybook/stories';
 
 interface CoverPageProps {
   stories: Story[];
+  language: Language;
+  onToggleLanguage: () => void;
   onSelectStory: (id: string) => void;
 }
 
-export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
+function t(text: BilingualText, lang: Language) {
+  return text[lang];
+}
+
+export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }: CoverPageProps) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-200 via-amber-50 to-emerald-100">
       {/* Decorations */}
@@ -23,9 +30,30 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
       <FloatingHeart className="absolute top-1/2 right-8 w-8 h-8" delay={0} />
       <FloatingHeart className="absolute top-1/3 left-4 w-7 h-7" delay={1.5} />
 
+      {/* Language toggle - top right floating */}
+      <motion.button
+        onClick={onToggleLanguage}
+        className="fixed top-4 left-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-white shadow-lg hover:scale-105 active:scale-95 transition-transform"
+        whileTap={{ scale: 0.95 }}
+        aria-label={ui.switchLanguage[language]}
+        title={ui.switchLanguage[language]}
+      >
+        <span className="text-xl">🌐</span>
+        <span className="text-sm font-bold text-emerald-700">
+          {language === 'en' ? 'English' : 'Bahasa Melayu'}
+        </span>
+        <motion.span
+          className="text-xs text-emerald-500"
+          animate={{ rotate: [0, 180, 360] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+        >
+          🔄
+        </motion.span>
+      </motion.button>
+
       {/* Header */}
       <motion.div
-        className="relative z-10 pt-12 pb-8 px-4 text-center"
+        className="relative z-10 pt-16 pb-8 px-4 text-center"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -37,7 +65,7 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
           transition={{ delay: 0.3, type: 'spring' }}
         >
           <span className="text-2xl">📖</span>
-          <span className="text-sm font-semibold text-emerald-700">Storybook for Little Muslims</span>
+          <span className="text-sm font-semibold text-emerald-700">{ui.appTagline[language]}</span>
         </motion.div>
         <motion.h1
           className="text-5xl md:text-7xl font-extrabold text-emerald-700 drop-shadow-lg"
@@ -46,7 +74,7 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
           transition={{ delay: 0.5, type: 'spring', bounce: 0.4 }}
           style={{ textShadow: '3px 3px 0 white, 5px 5px 0 rgba(16, 185, 129, 0.2)' }}
         >
-          Kisah Sahabat Nabi
+          {language === 'en' ? 'Stories of the Prophet\'s Companions' : 'Kisah Sahabat Nabi'}
         </motion.h1>
         <motion.p
           className="text-lg md:text-2xl text-amber-700 font-bold mt-3"
@@ -54,7 +82,7 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
         >
-          Stories of the Prophet's Companions
+          {language === 'en' ? 'A Beautiful Storybook for Little Muslims' : 'Buku Cerita Indah untuk Kanak-kanak Muslim'}
         </motion.p>
         <motion.p
           className="text-sm md:text-base text-emerald-600 mt-2 font-medium"
@@ -62,7 +90,7 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
         >
-          Tap a story to begin your adventure!
+          {ui.tapToBegin[language]}
         </motion.p>
       </motion.div>
 
@@ -118,10 +146,10 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
                       className="text-xl md:text-2xl font-extrabold leading-tight"
                       style={{ color: story.accentColor }}
                     >
-                      {story.title}
+                      {t(story.title, language)}
                     </h2>
                     <p className="text-sm md:text-base font-medium opacity-80 mt-1" style={{ color: story.accentColor }}>
-                      {story.subtitle}
+                      {t(story.subtitle, language)}
                     </p>
                     <div className="flex items-center gap-2 mt-3">
                       <span
@@ -132,7 +160,7 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
                       </span>
                     </div>
                     <p className="text-xs md:text-sm mt-2 font-medium opacity-70" style={{ color: story.accentColor }}>
-                      {story.meaning} • {story.pages.length} pages
+                      {t(story.meaning, language)} • {story.pages.length} {ui.pages[language]}
                     </p>
                   </div>
                 </div>
@@ -144,7 +172,7 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
                   className="flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white shadow-md group-hover:shadow-lg transition-all"
                   style={{ background: story.accentColor }}
                 >
-                  <span className="text-base md:text-lg">Read Story</span>
+                  <span className="text-base md:text-lg">{ui.readStory[language]}</span>
                   <span className="text-xl group-hover:translate-x-1 transition-transform">→</span>
                 </div>
               </div>
@@ -160,7 +188,7 @@ export function CoverPage({ stories, onSelectStory }: CoverPageProps) {
           transition={{ delay: 2 }}
         >
           <p className="text-sm text-emerald-700 font-medium">
-            ✨ Each story has a beautiful lesson for little hearts ✨
+            ✨ {ui.footerLine[language]} ✨
           </p>
         </motion.div>
       </div>

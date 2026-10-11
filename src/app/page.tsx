@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CoverPage } from '@/components/storybook/CoverPage';
 import { StoryReader } from '@/components/storybook/StoryReader';
-import { stories, getStoryById } from '@/lib/storybook/stories';
+import { stories, getStoryById, type Language } from '@/lib/storybook/stories';
+import { useLanguage } from '@/lib/storybook/use-language';
 
 export default function Home() {
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  const { language, toggleLanguage } = useLanguage();
 
   const selectedStory = selectedStoryId ? getStoryById(selectedStoryId) : null;
 
@@ -24,6 +26,8 @@ export default function Home() {
           >
             <CoverPage
               stories={stories}
+              language={language}
+              onToggleLanguage={toggleLanguage}
               onSelectStory={(id) => setSelectedStoryId(id)}
             />
           </motion.div>
@@ -37,6 +41,8 @@ export default function Home() {
           >
             <StoryReader
               story={selectedStory}
+              language={language}
+              onToggleLanguage={toggleLanguage}
               onBack={() => setSelectedStoryId(null)}
               onComplete={() => setSelectedStoryId(null)}
             />
