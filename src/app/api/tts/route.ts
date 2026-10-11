@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       input: text.trim(),
       voice: voice,
       speed: speed,
-      response_format: 'wav',
+      response_format: 'wav',  // z-ai SDK supports wav, pcm (not mp3)
       stream: false,
     });
 

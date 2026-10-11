@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SceneRenderer } from './scenes/SceneRenderer';
 import { LanguagePicker } from './LanguagePicker';
@@ -26,7 +26,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
   const [autoNarrate, setAutoNarrate] = useState(true);
   const [showLesson, setShowLesson] = useState(false);
 
-  const { narrate, stop, isNarrating, isLoading } = useNarration();
+  const { narrate, stop, isNarrating, isLoading, isBlocked, retry } = useNarration();
 
   const currentPage = story.pages[pageIndex];
   const isLastPage = pageIndex === story.pages.length - 1;
@@ -39,20 +39,28 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
     setPageIndex(newIndex);
   }, []);
 
-  // Auto-narrate on page change (and when language changes)
+  // Auto-narrate on page change (and when language changes).
+  // Uses a ref to the narrate function so the effect doesn't re-run when
+  // narrate's identity changes (which would otherwise cancel the audio mid-play).
+  const narrateRef = useRef(narrate);
+  useEffect(() => {
+    narrateRef.current = narrate;
+  }, [narrate]);
+
   useEffect(() => {
     if (!autoNarrate) {
       stop();
       return;
     }
     const timer = setTimeout(() => {
-      narrate(currentPage.narration[language], language);
+      narrateRef.current(currentPage.narration[language], language);
     }, 600);
     return () => {
       clearTimeout(timer);
-      stop();
+      // Don't call stop() here — it would cancel audio that's still loading/playing.
+      // stop() is called explicitly when navigating or when autoNarrate is toggled.
     };
-  }, [pageIndex, autoNarrate, narrate, stop, currentPage.narration, language]);
+  }, [pageIndex, autoNarrate, language]);
 
   const handleNext = () => {
     if (isLastPage) {
@@ -243,7 +251,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
               </p>
             </div>
             {/* Narrating indicator */}
-            {(isNarrating || isLoading) && (
+            {(isNarrating || isLoading) && !isBlocked && (
               <motion.div
                 className="flex items-center gap-1 mt-3 ml-13"
                 initial={{ opacity: 0 }}
@@ -262,6 +270,31 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
                   {isLoading ? '...' : `${ui.reading[language]}...`}
                 </span>
               </motion.div>
+            )}
+            {/* Autoplay blocked — show tap-to-listen button (user gesture will unlock audio) */}
+            {isBlocked && (
+              <motion.button
+                onClick={retry}
+                className="mt-3 ml-13 inline-flex items-center gap-2 px-4 py-2 rounded-full text-white shadow-md hover:scale-105 active:scale-95 transition-transform"
+                style={{ background: story.accentColor }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <motion.span
+                  className="text-base"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                >
+                  🔊
+                </motion.span>
+                <span className={`text-sm font-bold ${arabicFontClass}`}>
+                  {language === 'en' && 'Tap to listen'}
+                  {language === 'ms' && 'Tekan untuk dengar'}
+                  {language === 'id' && 'Tekan untuk mendengar'}
+                  {language === 'ar' && 'اضغط للاستماع'}
+                </span>
+              </motion.button>
             )}
           </motion.div>
         </AnimatePresence>
