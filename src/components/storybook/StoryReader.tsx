@@ -1,68 +1,37 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SceneRenderer } from './scenes/SceneRenderer';
-import type { Story, Language, BilingualText } from '@/lib/storybook/stories';
-import { ui } from '@/lib/storybook/stories';
+import { LanguagePicker } from './LanguagePicker';
+import type { Story, Language, LocalizedText } from '@/lib/storybook/stories';
+import { ui, isRTL } from '@/lib/storybook/stories';
+import { useNarration } from '@/lib/storybook/use-narration';
 
 interface StoryReaderProps {
   story: Story;
   language: Language;
-  onToggleLanguage: () => void;
+  onLanguageChange: (lang: Language) => void;
   onBack: () => void;
   onComplete: () => void;
 }
 
-function t(text: BilingualText, lang: Language) {
+function t(text: LocalizedText, lang: Language) {
   return text[lang];
 }
 
-export function StoryReader({ story, language, onToggleLanguage, onBack, onComplete }: StoryReaderProps) {
+export function StoryReader({ story, language, onLanguageChange, onBack, onComplete }: StoryReaderProps) {
   const [pageIndex, setPageIndex] = useState(0);
   const [triggered, setTriggered] = useState(false);
-  const [isNarrating, setIsNarrating] = useState(false);
   const [autoNarrate, setAutoNarrate] = useState(true);
   const [showLesson, setShowLesson] = useState(false);
-  // Track language spoken in current narration so language toggle doesn't break mid-utterance
-  const spokenLangRef = useRef<Language>(language);
+
+  const { narrate, stop, isNarrating, isLoading } = useNarration();
 
   const currentPage = story.pages[pageIndex];
   const isLastPage = pageIndex === story.pages.length - 1;
   const progress = ((pageIndex + 1) / story.pages.length) * 100;
-
-  // Web Speech API narration - picks voice matching the language
-  const narrate = useCallback((text: string, lang: Language) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.85;
-    utterance.pitch = 1.1;
-    utterance.volume = 1;
-    // Set language code for proper pronunciation
-    utterance.lang = lang === 'ms' ? 'ms-MY' : 'en-US';
-
-    // Try to find a voice matching the language
-    const voices = window.speechSynthesis.getVoices();
-    const langPrefix = lang === 'ms' ? 'ms' : 'en';
-    const preferredVoice =
-      voices.find(v => v.lang.toLowerCase().startsWith(langPrefix) && v.name.includes('Google')) ||
-      voices.find(v => v.lang.toLowerCase().startsWith(langPrefix)) ||
-      voices.find(v => v.name.includes('Google') && v.lang.toLowerCase().startsWith('en')) ||
-      voices.find(v => v.lang.toLowerCase().startsWith('en'));
-    if (preferredVoice) utterance.voice = preferredVoice;
-
-    utterance.onstart = () => {
-      setIsNarrating(true);
-      spokenLangRef.current = lang;
-    };
-    utterance.onend = () => setIsNarrating(false);
-    utterance.onerror = () => setIsNarrating(false);
-
-    window.speechSynthesis.speak(utterance);
-  }, []);
+  const rtl = isRTL(language);
 
   const goToPage = useCallback((newIndex: number) => {
     setTriggered(false);
@@ -72,39 +41,22 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
 
   // Auto-narrate on page change (and when language changes)
   useEffect(() => {
-    if (!autoNarrate) return;
+    if (!autoNarrate) {
+      stop();
+      return;
+    }
     const timer = setTimeout(() => {
       narrate(currentPage.narration[language], language);
     }, 600);
     return () => {
       clearTimeout(timer);
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      setIsNarrating(false);
+      stop();
     };
-  }, [pageIndex, autoNarrate, narrate, currentPage.narration, language]);
-
-  // Load voices for Web Speech API
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.getVoices();
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.getVoices();
-    };
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
+  }, [pageIndex, autoNarrate, narrate, stop, currentPage.narration, language]);
 
   const handleNext = () => {
     if (isLastPage) {
+      stop();
       setShowLesson(true);
     } else {
       goToPage(pageIndex + 1);
@@ -119,8 +71,8 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
 
   const handleTrigger = () => {
     setTriggered(true);
-    // Re-trigger narration if not already in the correct language
-    if (!isNarrating || spokenLangRef.current !== language) {
+    // Re-narrate if not currently playing
+    if (!isNarrating && !isLoading) {
       narrate(currentPage.narration[language], language);
     }
   };
@@ -129,23 +81,29 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
     narrate(currentPage.narration[language], language);
   };
 
+  const arabicFontClass = rtl ? 'font-arabic' : '';
+
   return (
     <div
       className="relative min-h-screen overflow-hidden"
       style={{
         background: `linear-gradient(135deg, ${story.gradientFrom}, ${story.gradientTo})`,
       }}
+      dir={rtl ? 'rtl' : 'ltr'}
     >
       {/* Top bar */}
       <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md shadow-md">
         <div className="max-w-5xl mx-auto px-3 py-3 flex items-center gap-2 sm:gap-3">
           {/* Back button */}
           <button
-            onClick={onBack}
+            onClick={() => {
+              stop();
+              onBack();
+            }}
             className="flex items-center gap-1 px-3 py-2 rounded-full bg-white shadow hover:scale-105 transition-transform"
             aria-label={ui.backToStories[language]}
           >
-            <span className="text-lg">←</span>
+            <span className="text-lg">{rtl ? '→' : '←'}</span>
             <span className="hidden sm:inline text-sm font-semibold" style={{ color: story.accentColor }}>
               {ui.back[language]}
             </span>
@@ -153,35 +111,30 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
 
           {/* Story title */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-base md:text-xl font-extrabold truncate" style={{ color: story.accentColor }}>
+            <h2
+              className="text-base md:text-xl font-extrabold truncate"
+              style={{ color: story.accentColor }}
+            >
               {t(story.title, language)}
             </h2>
-            <p className="text-xs opacity-70 truncate" style={{ color: story.accentColor }}>
+            <p
+              className="text-xs opacity-70 truncate"
+              style={{ color: story.accentColor }}
+            >
               {story.sahabatName} • {ui.page[language]} {pageIndex + 1} {ui.of[language]} {story.pages.length}
             </p>
           </div>
 
-          {/* Language toggle */}
-          <button
-            onClick={onToggleLanguage}
-            className="flex items-center gap-1 px-3 py-2 rounded-full bg-white shadow hover:scale-105 transition-transform"
-            aria-label={ui.switchLanguage[language]}
-            title={ui.switchLanguage[language]}
-          >
-            <span className="text-base">🌐</span>
-            <span className="text-xs font-bold" style={{ color: story.accentColor }}>
-              {language === 'en' ? 'EN' : 'BM'}
-            </span>
-          </button>
+          {/* Language picker - inline */}
+          <LanguagePicker language={language} onChange={onLanguageChange} variant="inline" accentColor={story.accentColor} />
 
           {/* Narration toggle */}
           <button
             onClick={() => {
               const newAuto = !autoNarrate;
               setAutoNarrate(newAuto);
-              if (!newAuto && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                setIsNarrating(false);
+              if (!newAuto) {
+                stop();
               }
             }}
             className={`flex items-center gap-1 px-3 py-2 rounded-full shadow hover:scale-105 transition-all ${
@@ -200,7 +153,9 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
             aria-label={ui.replayNarration[language]}
             title={ui.replayNarration[language]}
           >
-            <span className={`text-lg ${isNarrating ? 'animate-pulse' : ''}`}>🔁</span>
+            <span className={`text-lg ${isNarrating || isLoading ? 'animate-pulse' : ''}`}>
+              {isLoading ? '⏳' : '🔁'}
+            </span>
           </button>
         </div>
 
@@ -222,9 +177,9 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
         <AnimatePresence mode="wait">
           <motion.div
             key={pageIndex}
-            initial={{ opacity: 0, x: 50, rotate: 2 }}
+            initial={{ opacity: 0, x: rtl ? -50 : 50, rotate: 2 }}
             animate={{ opacity: 1, x: 0, rotate: 0 }}
-            exit={{ opacity: 0, x: -50, rotate: -2 }}
+            exit={{ opacity: 0, x: rtl ? 50 : -50, rotate: -2 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
             className="relative w-full aspect-[4/3] md:aspect-[16/10] rounded-3xl shadow-2xl overflow-hidden mb-4"
           >
@@ -254,7 +209,7 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
                 👆
               </motion.span>
               <span
-                className="text-sm md:text-base font-semibold px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-sm"
+                className={`text-sm md:text-base font-semibold px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-sm ${arabicFontClass}`}
                 style={{ color: story.accentColor }}
               >
                 {t(currentPage.interactiveHint, language)}
@@ -280,12 +235,15 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
               >
                 <span className="text-white">📖</span>
               </div>
-              <p className="text-lg md:text-2xl font-semibold leading-relaxed flex-1" style={{ color: story.accentColor }}>
+              <p
+                className={`text-lg md:text-2xl font-semibold leading-relaxed flex-1 ${arabicFontClass}`}
+                style={{ color: story.accentColor }}
+              >
                 {t(currentPage.text, language)}
               </p>
             </div>
             {/* Narrating indicator */}
-            {isNarrating && (
+            {(isNarrating || isLoading) && (
               <motion.div
                 className="flex items-center gap-1 mt-3 ml-13"
                 initial={{ opacity: 0 }}
@@ -301,7 +259,7 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
                   />
                 ))}
                 <span className="text-xs ml-2 opacity-60" style={{ color: story.accentColor }}>
-                  {ui.reading[language]}...
+                  {isLoading ? '...' : `${ui.reading[language]}...`}
                 </span>
               </motion.div>
             )}
@@ -321,7 +279,7 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
             }`}
             aria-label={ui.previous[language]}
           >
-            <span className="text-xl">←</span>
+            <span className="text-xl">{rtl ? '→' : '←'}</span>
             <span className="hidden sm:inline">{ui.previous[language]}</span>
           </button>
 
@@ -352,7 +310,7 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
             aria-label={isLastPage ? ui.lesson[language] : ui.next[language]}
           >
             <span className="hidden sm:inline">{isLastPage ? ui.lesson[language] : ui.next[language]}</span>
-            <span className="text-xl">{isLastPage ? '🎯' : '→'}</span>
+            <span className="text-xl">{isLastPage ? '🎯' : rtl ? '←' : '→'}</span>
           </button>
         </div>
       </div>
@@ -374,6 +332,7 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
               exit={{ scale: 0.5, y: 50 }}
               transition={{ type: 'spring', bounce: 0.4 }}
               onClick={(e) => e.stopPropagation()}
+              dir={rtl ? 'rtl' : 'ltr'}
             >
               {/* Decorations */}
               <div className="flex justify-center gap-2 mb-4">
@@ -400,10 +359,15 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
                 </motion.span>
               </div>
 
-              <h3 className="text-2xl md:text-3xl font-extrabold text-center mb-2" style={{ color: story.accentColor }}>
+              <h3
+                className={`text-2xl md:text-3xl font-extrabold text-center mb-2 ${arabicFontClass}`}
+                style={{ color: story.accentColor }}
+              >
                 {t(story.lessonTitle, language)}
               </h3>
-              <p className="text-base md:text-lg text-center text-gray-700 mb-6 leading-relaxed">
+              <p
+                className={`text-base md:text-lg text-center text-gray-700 mb-6 leading-relaxed ${arabicFontClass}`}
+              >
                 {t(story.lessonText, language)}
               </p>
 
@@ -413,7 +377,11 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
                 <p className="text-lg font-bold" style={{ color: story.accentColor }}>
                   {story.sahabatName}
                 </p>
-                <p className="text-sm text-gray-600">{t(story.meaning, language)}</p>
+                <p
+                  className={`text-sm text-gray-600 ${arabicFontClass}`}
+                >
+                  {t(story.meaning, language)}
+                </p>
               </div>
 
               {/* Actions */}
@@ -429,7 +397,10 @@ export function StoryReader({ story, language, onToggleLanguage, onBack, onCompl
                   🔁 {ui.readAgain[language]}
                 </button>
                 <button
-                  onClick={onComplete}
+                  onClick={() => {
+                    stop();
+                    onComplete();
+                  }}
                   className="w-full py-3 rounded-2xl font-bold bg-emerald-500 text-white shadow-md hover:scale-[1.02] active:scale-95 transition-all"
                 >
                   ✨ {ui.chooseAnotherStory[language]}

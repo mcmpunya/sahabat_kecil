@@ -124,6 +124,11 @@
   }
 }
 
+/* Arabic font family utility for RTL content */
+.font-arabic {
+  font-family: var(--font-arabic), 'Noto Naskh Arabic', 'Amiri', serif;
+}
+
 /* Friendly, rounded, kid-friendly styling */
 button {
   -webkit-tap-highlight-color: transparent;

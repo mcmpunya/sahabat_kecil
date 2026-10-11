@@ -2,23 +2,30 @@
 
 import { motion } from 'framer-motion';
 import { Cloud, Sun, Star, Sparkle, FloatingHeart } from './scenes/Decorations';
-import type { Story, Language, BilingualText } from '@/lib/storybook/stories';
-import { ui } from '@/lib/storybook/stories';
+import { LanguagePicker } from './LanguagePicker';
+import type { Story, Language, LocalizedText } from '@/lib/storybook/stories';
+import { ui, isRTL } from '@/lib/storybook/stories';
 
 interface CoverPageProps {
   stories: Story[];
   language: Language;
-  onToggleLanguage: () => void;
+  onLanguageChange: (lang: Language) => void;
   onSelectStory: (id: string) => void;
 }
 
-function t(text: BilingualText, lang: Language) {
+function t(text: LocalizedText, lang: Language) {
   return text[lang];
 }
 
-export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }: CoverPageProps) {
+export function CoverPage({ stories, language, onLanguageChange, onSelectStory }: CoverPageProps) {
+  const rtl = isRTL(language);
+  const arabicFontClass = rtl ? 'font-arabic' : '';
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-200 via-amber-50 to-emerald-100">
+    <div
+      className="relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-200 via-amber-50 to-emerald-100"
+      dir={rtl ? 'rtl' : 'ltr'}
+    >
       {/* Decorations */}
       <Sun className="absolute top-8 right-8 w-24 h-24 md:w-32 md:h-32" />
       <Cloud className="absolute top-12 left-8 w-32 h-16" delay={0} />
@@ -30,26 +37,8 @@ export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }
       <FloatingHeart className="absolute top-1/2 right-8 w-8 h-8" delay={0} />
       <FloatingHeart className="absolute top-1/3 left-4 w-7 h-7" delay={1.5} />
 
-      {/* Language toggle - top right floating */}
-      <motion.button
-        onClick={onToggleLanguage}
-        className="fixed top-4 left-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-white shadow-lg hover:scale-105 active:scale-95 transition-transform"
-        whileTap={{ scale: 0.95 }}
-        aria-label={ui.switchLanguage[language]}
-        title={ui.switchLanguage[language]}
-      >
-        <span className="text-xl">🌐</span>
-        <span className="text-sm font-bold text-emerald-700">
-          {language === 'en' ? 'English' : 'Bahasa Melayu'}
-        </span>
-        <motion.span
-          className="text-xs text-emerald-500"
-          animate={{ rotate: [0, 180, 360] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-        >
-          🔄
-        </motion.span>
-      </motion.button>
+      {/* Language picker - top left floating */}
+      <LanguagePicker language={language} onChange={onLanguageChange} variant="floating" />
 
       {/* Header */}
       <motion.div
@@ -68,24 +57,26 @@ export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }
           <span className="text-sm font-semibold text-emerald-700">{ui.appTagline[language]}</span>
         </motion.div>
         <motion.h1
-          className="text-5xl md:text-7xl font-extrabold text-emerald-700 drop-shadow-lg"
+          className={`text-5xl md:text-7xl font-extrabold text-emerald-700 drop-shadow-lg ${arabicFontClass}`}
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.5, type: 'spring', bounce: 0.4 }}
-          style={{ textShadow: '3px 3px 0 white, 5px 5px 0 rgba(16, 185, 129, 0.2)' }}
+          style={{
+            textShadow: '3px 3px 0 white, 5px 5px 0 rgba(16, 185, 129, 0.2)',
+          }}
         >
-          {language === 'en' ? 'Stories of the Prophet\'s Companions' : 'Kisah Sahabat Nabi'}
+          {language === 'en' ? "Stories of the Prophet's Companions" : ui.appName[language]}
         </motion.h1>
         <motion.p
-          className="text-lg md:text-2xl text-amber-700 font-bold mt-3"
+          className={`text-lg md:text-2xl text-amber-700 font-bold mt-3 ${arabicFontClass}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
         >
-          {language === 'en' ? 'A Beautiful Storybook for Little Muslims' : 'Buku Cerita Indah untuk Kanak-kanak Muslim'}
+          {ui.subtitleLine[language]}
         </motion.p>
         <motion.p
-          className="text-sm md:text-base text-emerald-600 mt-2 font-medium"
+          className={`text-sm md:text-base text-emerald-600 mt-2 font-medium ${arabicFontClass}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
@@ -110,6 +101,7 @@ export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }
               transition={{ delay: 1.2 + idx * 0.15, type: 'spring', bounce: 0.3 }}
               whileHover={{ scale: 1.03, rotate: idx % 2 === 0 ? -1 : 1 }}
               whileTap={{ scale: 0.98 }}
+              dir={rtl ? 'rtl' : 'ltr'}
             >
               {/* Decorative emojis on corners */}
               <div className="absolute top-2 right-2 text-3xl opacity-70 group-hover:scale-125 transition-transform">
@@ -143,12 +135,15 @@ export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }
                   </div>
                   <div className="flex-1 min-w-0">
                     <h2
-                      className="text-xl md:text-2xl font-extrabold leading-tight"
+                      className={`text-xl md:text-2xl font-extrabold leading-tight ${arabicFontClass}`}
                       style={{ color: story.accentColor }}
                     >
                       {t(story.title, language)}
                     </h2>
-                    <p className="text-sm md:text-base font-medium opacity-80 mt-1" style={{ color: story.accentColor }}>
+                    <p
+                      className={`text-sm md:text-base font-medium opacity-80 mt-1 ${arabicFontClass}`}
+                      style={{ color: story.accentColor }}
+                    >
                       {t(story.subtitle, language)}
                     </p>
                     <div className="flex items-center gap-2 mt-3">
@@ -159,7 +154,10 @@ export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }
                         {story.sahabatName}
                       </span>
                     </div>
-                    <p className="text-xs md:text-sm mt-2 font-medium opacity-70" style={{ color: story.accentColor }}>
+                    <p
+                      className={`text-xs md:text-sm mt-2 font-medium opacity-70 ${arabicFontClass}`}
+                      style={{ color: story.accentColor }}
+                    >
                       {t(story.meaning, language)} • {story.pages.length} {ui.pages[language]}
                     </p>
                   </div>
@@ -173,7 +171,7 @@ export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }
                   style={{ background: story.accentColor }}
                 >
                   <span className="text-base md:text-lg">{ui.readStory[language]}</span>
-                  <span className="text-xl group-hover:translate-x-1 transition-transform">→</span>
+                  <span className="text-xl group-hover:translate-x-1 transition-transform">{rtl ? '←' : '→'}</span>
                 </div>
               </div>
             </motion.button>
@@ -187,7 +185,9 @@ export function CoverPage({ stories, language, onToggleLanguage, onSelectStory }
           animate={{ opacity: 1 }}
           transition={{ delay: 2 }}
         >
-          <p className="text-sm text-emerald-700 font-medium">
+          <p
+            className={`text-sm text-emerald-700 font-medium ${arabicFontClass}`}
+          >
             ✨ {ui.footerLine[language]} ✨
           </p>
         </motion.div>
