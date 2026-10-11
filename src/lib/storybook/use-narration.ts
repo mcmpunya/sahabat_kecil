@@ -4,145 +4,124 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Language } from './stories';
 
 interface UseNarrationResult {
-  narrate: (text: string, lang: Language) => Promise<void>;
+  narrate: (text: string, lang: Language) => void;
   stop: () => void;
   isNarrating: boolean;
-  isLoading: boolean;
 }
 
 const LANG_CODE_MAP: Record<Language, string> = {
   en: 'en-US',
-  ms: 'ms-MY',
-  id: 'id-ID',
-  ar: 'ar-SA',
+  ms: 'ms-MY',  // Malay (Malaysia)
+  id: 'id-ID',  // Indonesian
+  ar: 'ar-SA',  // Arabic (Saudi Arabia)
 };
+
+// Languages we prefer for each target, in priority order
+const VOICE_PREFERENCE: Record<Language, string[]> = {
+  en: ['en-US', 'en-GB', 'en-AU', 'en'],
+  ms: ['ms-MY', 'ms'],           // Malay (Malaysia)
+  id: ['id-ID', 'id', 'ms-MY'], // Indonesian, fall back to Malay if not available
+  ar: ['ar-SA', 'ar-EG', 'ar', 'ar-AE'],
+};
+
+// Pick the best available voice on the device for the target language
+function pickVoice(voices: SpeechSynthesisVoice[], lang: Language): SpeechSynthesisVoice | null {
+  const preferred = VOICE_PREFERENCE[lang] || [];
+  // Try Google voices first (often higher quality on Chrome)
+  for (const code of preferred) {
+    const voice = voices.find((v) =>
+      v.lang.toLowerCase().startsWith(code.toLowerCase()) &&
+      v.name.toLowerCase().includes('google')
+    );
+    if (voice) return voice;
+  }
+  // Then any voice for that language
+  for (const code of preferred) {
+    const voice = voices.find((v) =>
+      v.lang.toLowerCase().startsWith(code.toLowerCase())
+    );
+    if (voice) return voice;
+  }
+  // Fallback to any English voice
+  const fallback = voices.find((v) => v.lang.toLowerCase().startsWith('en'));
+  return fallback || null;
+}
 
 export function useNarration(): UseNarrationResult {
   const [isNarrating, setIsNarrating] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const currentRequestRef = useRef<number>(0);
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
-  const cleanup = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+  // Load voices and update when voices change (some browsers load async)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    const loadVoices = () => {
+      voicesRef.current = window.speechSynthesis.getVoices();
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
   }, []);
 
-  const fallbackWebSpeech = useCallback((text: string, lang: Language) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      setIsNarrating(false);
-      setIsLoading(false);
-      return;
-    }
-
+  const stop = useCallback(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.85;
-    utterance.pitch = 1.1;
-    utterance.volume = 1;
-    utterance.lang = LANG_CODE_MAP[lang];
-
-    const voices = window.speechSynthesis.getVoices();
-    const langPrefix = LANG_CODE_MAP[lang].slice(0, 2);
-    const preferredVoice =
-      voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix) && v.name.includes('Google')) ||
-      voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix));
-    if (preferredVoice) utterance.voice = preferredVoice;
-
-    utterance.onstart = () => {
-      setIsNarrating(true);
-      setIsLoading(false);
-    };
-    utterance.onend = () => setIsNarrating(false);
-    utterance.onerror = () => setIsNarrating(false);
-
-    window.speechSynthesis.speak(utterance);
+    currentUtteranceRef.current = null;
+    setIsNarrating(false);
   }, []);
 
   const narrate = useCallback(
-    async (text: string, lang: Language) => {
+    (text: string, lang: Language) => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
       // Stop any current playback
-      cleanup();
-      setIsNarrating(false);
+      window.speechSynthesis.cancel();
 
-      const requestId = ++currentRequestRef.current;
-      setIsLoading(true);
-
-      try {
-        const response = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, language: lang }),
-        });
-
-        // If a newer request has started, abort this one
-        if (requestId !== currentRequestRef.current) {
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(`TTS API failed: ${response.status}`);
-        }
-
-        const blob = await response.blob();
-
-        if (requestId !== currentRequestRef.current) {
-          return;
-        }
-
-        const audioUrl = URL.createObjectURL(blob);
-        const audio = new Audio(audioUrl);
-        audioRef.current = audio;
-
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          audioRef.current = null;
-          setIsNarrating(false);
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(audioUrl);
-          audioRef.current = null;
-          // Fall back to Web Speech API
-          fallbackWebSpeech(text, lang);
-        };
-
-        setIsLoading(false);
-        setIsNarrating(true);
-        await audio.play();
-      } catch (error) {
-        console.warn('z-ai TTS failed, falling back to Web Speech API:', error);
-        if (requestId !== currentRequestRef.current) return;
-        setIsLoading(false);
-        fallbackWebSpeech(text, lang);
+      // Make sure voices are loaded
+      if (voicesRef.current.length === 0) {
+        voicesRef.current = window.speechSynthesis.getVoices();
       }
-    },
-    [cleanup, fallbackWebSpeech]
-  );
 
-  const stop = useCallback(() => {
-    currentRequestRef.current++;
-    cleanup();
-    setIsNarrating(false);
-    setIsLoading(false);
-  }, [cleanup]);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = lang === 'ar' ? 0.8 : 0.85;
+      utterance.pitch = 1.1;
+      utterance.volume = 1;
+      utterance.lang = LANG_CODE_MAP[lang];
+
+      const voice = pickVoice(voicesRef.current, lang);
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      utterance.onstart = () => setIsNarrating(true);
+      utterance.onend = () => {
+        setIsNarrating(false);
+        currentUtteranceRef.current = null;
+      };
+      utterance.onerror = () => {
+        setIsNarrating(false);
+        currentUtteranceRef.current = null;
+      };
+
+      currentUtteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    },
+    []
+  );
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
     };
   }, []);
 
-  return { narrate, stop, isNarrating, isLoading };
+  return { narrate, stop, isNarrating };
 }

@@ -26,7 +26,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
   const [autoNarrate, setAutoNarrate] = useState(true);
   const [showLesson, setShowLesson] = useState(false);
 
-  const { narrate, stop, isNarrating, isLoading } = useNarration();
+  const { narrate, stop, isNarrating } = useNarration();
 
   const currentPage = story.pages[pageIndex];
   const isLastPage = pageIndex === story.pages.length - 1;
@@ -72,7 +72,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
   const handleTrigger = () => {
     setTriggered(true);
     // Re-narrate if not currently playing
-    if (!isNarrating && !isLoading) {
+    if (!isNarrating) {
       narrate(currentPage.narration[language], language);
     }
   };
@@ -153,8 +153,8 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
             aria-label={ui.replayNarration[language]}
             title={ui.replayNarration[language]}
           >
-            <span className={`text-lg ${isNarrating || isLoading ? 'animate-pulse' : ''}`}>
-              {isLoading ? '⏳' : '🔁'}
+            <span className={`text-lg ${isNarrating ? 'animate-pulse' : ''}`}>
+              🔁
             </span>
           </button>
         </div>
@@ -243,7 +243,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
               </p>
             </div>
             {/* Narrating indicator */}
-            {(isNarrating || isLoading) && (
+            {isNarrating && (
               <motion.div
                 className="flex items-center gap-1 mt-3 ml-13"
                 initial={{ opacity: 0 }}
@@ -259,7 +259,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
                   />
                 ))}
                 <span className="text-xs ml-2 opacity-60" style={{ color: story.accentColor }}>
-                  {isLoading ? '...' : `${ui.reading[language]}...`}
+                  {`${ui.reading[language]}...`}
                 </span>
               </motion.div>
             )}
