@@ -47,15 +47,33 @@ export function CoverPage({ stories, language, onLanguageChange, onSelectStory }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
       >
+        {/* Logo badge */}
         <motion.div
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 backdrop-blur-sm mb-4 shadow-lg"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.3, type: 'spring' }}
+          className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-2xl mb-4"
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.2, type: 'spring', bounce: 0.5 }}
+          whileHover={{ scale: 1.05, rotate: 5 }}
         >
-          <span className="text-2xl">📖</span>
-          <span className="text-sm font-semibold text-emerald-700">{ui.appTagline[language]}</span>
+          <div className="flex flex-col items-center justify-center">
+            <motion.span
+              className="text-4xl md:text-5xl"
+              animate={{ y: [0, -3, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              📚
+            </motion.span>
+            <motion.span
+              className="text-2xl md:text-3xl -mt-1"
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              💚
+            </motion.span>
+          </div>
         </motion.div>
+
+        {/* Brand name */}
         <motion.h1
           className={`text-5xl md:text-7xl font-extrabold text-emerald-700 drop-shadow-lg ${arabicFontClass}`}
           initial={{ scale: 0.5, opacity: 0 }}
@@ -65,13 +83,41 @@ export function CoverPage({ stories, language, onLanguageChange, onSelectStory }
             textShadow: '3px 3px 0 white, 5px 5px 0 rgba(16, 185, 129, 0.2)',
           }}
         >
-          {language === 'en' ? "Stories of the Prophet's Companions" : ui.appName[language]}
+          {ui.appName[language]}
         </motion.h1>
+
+        {/* Tagline pill */}
+        <motion.div
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 backdrop-blur-sm mb-3 shadow-lg mt-4"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.8, type: 'spring' }}
+        >
+          <motion.span
+            className="text-lg"
+            animate={{ rotate: [0, 15, -15, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            ⭐
+          </motion.span>
+          <span className={`text-sm md:text-base font-bold text-amber-700 ${arabicFontClass}`}>
+            {ui.appTagline[language]}
+          </span>
+          <motion.span
+            className="text-lg"
+            animate={{ rotate: [0, -15, 15, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+          >
+            ⭐
+          </motion.span>
+        </motion.div>
+
+        {/* Subtitle */}
         <motion.p
-          className={`text-lg md:text-2xl text-amber-700 font-bold mt-3 ${arabicFontClass}`}
+          className={`text-base md:text-xl text-emerald-700 font-semibold mt-3 ${arabicFontClass}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 1 }}
         >
           {ui.subtitleLine[language]}
         </motion.p>
@@ -79,7 +125,7 @@ export function CoverPage({ stories, language, onLanguageChange, onSelectStory }
           className={`text-sm md:text-base text-emerald-600 mt-2 font-medium ${arabicFontClass}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
+          transition={{ delay: 1.2 }}
         >
           {ui.tapToBegin[language]}
         </motion.p>

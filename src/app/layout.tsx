@@ -21,18 +21,18 @@ const notoNaskhArabic = Noto_Naskh_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "Kisah Sahabat Nabi - Interactive Multilingual Storybook for Kids",
-  description: "A fun, animated, interactive storybook about the Prophet's Companions for preschool children. Available in English, Bahasa Melayu, Bahasa Indonesia, and Arabic. Learn beautiful Islamic values through engaging stories.",
-  keywords: ["Sahabat Nabi", "Islamic stories for kids", "preschool storybook", "animated book", "Bilal", "Abu Bakar", "Khadijah", "Umar", "cerita kanak-kanak", "Bahasa Melayu", "Bahasa Indonesia", "Arabic", "qisas sahabat"],
-  authors: [{ name: "Storybook for Little Muslims" }],
+  title: "Sahabat Kecil — Interactive Islamic Storybook for Kids",
+  description: "Sahabat Kecil is a fun, animated, interactive storybook about the Prophet's Companions for preschool children. Available in English, Bahasa Melayu, Bahasa Indonesia, and Arabic. Learn beautiful Islamic values through engaging stories.",
+  keywords: ["Sahabat Kecil", "Sahabat Nabi", "Islamic stories for kids", "preschool storybook", "animated book", "Bilal", "Abu Bakar", "Khadijah", "Umar", "cerita kanak-kanak", "Bahasa Melayu", "Bahasa Indonesia", "Arabic", "qisas sahabat", "buku cerita Islam"],
+  authors: [{ name: "Sahabat Kecil" }],
   openGraph: {
-    title: "Kisah Sahabat Nabi - Interactive Multilingual Storybook for Kids",
+    title: "Sahabat Kecil — Interactive Islamic Storybook for Kids",
     description: "A fun, animated, interactive storybook about the Prophet's Companions for preschool children. English, Malay, Indonesian & Arabic.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kisah Sahabat Nabi - Interactive Multilingual Storybook for Kids",
+    title: "Sahabat Kecil — Interactive Islamic Storybook for Kids",
     description: "A fun, animated, interactive storybook about the Prophet's Companions for preschool children.",
   },
 };

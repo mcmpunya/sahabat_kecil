@@ -36,18 +36,24 @@ export interface Story {
 // UI strings (4 languages)
 export const ui = {
   appName: {
+    en: 'Sahabat Kecil',
+    ms: 'Sahabat Kecil',
+    id: 'Sahabat Kecil',
+    ar: 'أصحاب صغار',
+  },
+  appTagline: {
+    en: 'Little Friends, Big Hearts',
+    ms: 'Sahabat Kecil, Hati Besar',
+    id: 'Sahabat Kecil, Hati Besar',
+    ar: 'أصحاب صغار، قلوب كبيرة',
+  },
+  subtitleLine: {
     en: 'Stories of the Prophet\'s Companions',
     ms: 'Kisah Sahabat Nabi',
     id: 'Kisah Sahabat Nabi',
     ar: 'قصص أصحاب النبي',
   },
-  appTagline: {
-    en: 'Storybook for Little Muslims',
-    ms: 'Buku Cerita untuk Kanak-kanak Muslim',
-    id: 'Buku Cerita untuk Anak-anak Muslim',
-    ar: 'كتاب قصص للأطفال المسلمين الصغار',
-  },
-  subtitleLine: {
+  appDescription: {
     en: 'A Beautiful Storybook for Little Muslims',
     ms: 'Buku Cerita Indah untuk Kanak-kanak Muslim',
     id: 'Buku Cerita Indah untuk Anak-anak Muslim',
