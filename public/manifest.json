@@ -6,7 +6,7 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FEF3C7",
+  "background_color": "#BAE6FD",
   "theme_color": "#0D9488",
   "categories": ["education", "kids", "books", "religion"],
   "lang": "en",
