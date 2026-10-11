@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Cloud, Sun, Star, Sparkle, FloatingHeart } from './scenes/Decorations';
 import { LanguagePicker } from './LanguagePicker';
+import { Logo } from './Logo';
 import type { Story, Language, LocalizedText } from '@/lib/storybook/stories';
 import { ui, isRTL } from '@/lib/storybook/stories';
 
@@ -49,28 +50,12 @@ export function CoverPage({ stories, language, onLanguageChange, onSelectStory }
       >
         {/* Logo badge */}
         <motion.div
-          className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-2xl mb-4"
+          className="mb-4 flex justify-center"
           initial={{ scale: 0, rotate: -20 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 0.2, type: 'spring', bounce: 0.5 }}
-          whileHover={{ scale: 1.05, rotate: 5 }}
         >
-          <div className="flex flex-col items-center justify-center">
-            <motion.span
-              className="text-4xl md:text-5xl"
-              animate={{ y: [0, -3, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              📚
-            </motion.span>
-            <motion.span
-              className="text-2xl md:text-3xl -mt-1"
-              animate={{ scale: [1, 1.15, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              💚
-            </motion.span>
-          </div>
+          <Logo size={128} animated />
         </motion.div>
 
         {/* Brand name */}

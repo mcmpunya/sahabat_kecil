@@ -1,0 +1,94 @@
+{
+  "name": "Sahabat Kecil — Interactive Islamic Storybook",
+  "short_name": "Sahabat Kecil",
+  "description": "A fun, animated, interactive storybook about the Prophet's Companions for preschool children. Available in English, Bahasa Melayu, Bahasa Indonesia, and Arabic.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FEF3C7",
+  "theme_color": "#0D9488",
+  "categories": ["education", "kids", "books", "religion"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon-16.png",
+      "sizes": "16x16",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Bilal the Brave",
+      "short_name": "Bilal",
+      "description": "Read the story of Bilal bin Rabah, the first muadzin",
+      "url": "/?story=bilal",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Abu Bakar the Truthful",
+      "short_name": "Abu Bakar",
+      "description": "Read the story of Abu Bakar As-Siddiq",
+      "url": "/?story=abubakar",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Khadijah the Loving",
+      "short_name": "Khadijah",
+      "description": "Read the story of Khadijah binti Khuwailid",
+      "url": "/?story=khadijah",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Umar the Just",
+      "short_name": "Umar",
+      "description": "Read the story of Umar bin Khattab",
+      "url": "/?story=umar",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

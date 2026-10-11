@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SceneRenderer } from './scenes/SceneRenderer';
 import { LanguagePicker } from './LanguagePicker';
+import { LogoMark } from './Logo';
 import type { Story, Language, LocalizedText } from '@/lib/storybook/stories';
 import { ui, isRTL } from '@/lib/storybook/stories';
 import { useNarration } from '@/lib/storybook/use-narration';
@@ -117,6 +118,23 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
             <span className="hidden sm:inline text-sm font-semibold" style={{ color: story.accentColor }}>
               {ui.back[language]}
             </span>
+          </button>
+
+          {/* Branding mark - Sahabat Kecil logo + name */}
+          <button
+            onClick={() => {
+              stop();
+              onBack();
+            }}
+            className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity"
+            aria-label="Sahabat Kecil — back to home"
+            title="Sahabat Kecil"
+          >
+            <LogoMark size={32} className="flex-shrink-0" />
+            <div className="hidden md:flex flex-col leading-tight">
+              <span className="text-sm font-extrabold text-emerald-700">Sahabat Kecil</span>
+              <span className="text-[10px] text-gray-500 -mt-0.5">{ui.appTagline[language]}</span>
+            </div>
           </button>
 
           {/* Story title */}
