@@ -26,7 +26,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
   const [autoNarrate, setAutoNarrate] = useState(true);
   const [showLesson, setShowLesson] = useState(false);
 
-  const { narrate, stop, isNarrating, isLoading, isBlocked, retry } = useNarration();
+  const { narrate, stop, isNarrating, isSupported, hasNativeVoice } = useNarration();
 
   const currentPage = story.pages[pageIndex];
   const isLastPage = pageIndex === story.pages.length - 1;
@@ -48,7 +48,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
   }, [narrate]);
 
   useEffect(() => {
-    if (!autoNarrate) {
+    if (!autoNarrate || !isSupported) {
       stop();
       return;
     }
@@ -60,7 +60,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
       // Don't call stop() here — it would cancel audio that's still loading/playing.
       // stop() is called explicitly when navigating or when autoNarrate is toggled.
     };
-  }, [pageIndex, autoNarrate, language]);
+  }, [pageIndex, autoNarrate, language, isSupported]);
 
   const handleNext = () => {
     if (isLastPage) {
@@ -80,13 +80,15 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
   const handleTrigger = () => {
     setTriggered(true);
     // Re-narrate if not currently playing
-    if (!isNarrating && !isLoading) {
+    if (!isNarrating && isSupported) {
       narrate(currentPage.narration[language], language);
     }
   };
 
   const handleReplayNarration = () => {
-    narrate(currentPage.narration[language], language);
+    if (isSupported) {
+      narrate(currentPage.narration[language], language);
+    }
   };
 
   const arabicFontClass = rtl ? 'font-arabic' : '';
@@ -145,24 +147,40 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
                 stop();
               }
             }}
+            disabled={!isSupported}
             className={`flex items-center gap-1 px-3 py-2 rounded-full shadow hover:scale-105 transition-all ${
-              autoNarrate ? 'bg-white text-emerald-600' : 'bg-gray-200 text-gray-600'
+              !isSupported
+                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                : autoNarrate
+                ? 'bg-white text-emerald-600'
+                : 'bg-gray-200 text-gray-600'
             }`}
             aria-label={ui.toggleNarration[language]}
-            title={autoNarrate ? ui.narrationOn[language] : ui.narrationOff[language]}
+            title={
+              !isSupported
+                ? (language === 'ar'
+                    ? 'الصوت غير مدعوم على هذا الجهاز'
+                    : 'Narration not supported on this device')
+                : autoNarrate
+                ? ui.narrationOn[language]
+                : ui.narrationOff[language]
+            }
           >
-            <span className="text-lg">{autoNarrate ? '🔊' : '🔇'}</span>
+            <span className="text-lg">{!isSupported ? '📵' : autoNarrate ? '🔊' : '🔇'}</span>
           </button>
 
           {/* Replay narration */}
           <button
             onClick={handleReplayNarration}
-            className="flex items-center gap-1 px-3 py-2 rounded-full bg-white shadow hover:scale-105 transition-transform"
+            disabled={!isSupported}
+            className={`flex items-center gap-1 px-3 py-2 rounded-full shadow hover:scale-105 transition-transform ${
+              !isSupported ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-white'
+            }`}
             aria-label={ui.replayNarration[language]}
             title={ui.replayNarration[language]}
           >
-            <span className={`text-lg ${isNarrating || isLoading ? 'animate-pulse' : ''}`}>
-              {isLoading ? '⏳' : '🔁'}
+            <span className={`text-lg ${isNarrating ? 'animate-pulse' : ''}`}>
+              🔁
             </span>
           </button>
         </div>
@@ -251,7 +269,7 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
               </p>
             </div>
             {/* Narrating indicator */}
-            {(isNarrating || isLoading) && !isBlocked && (
+            {isNarrating && (
               <motion.div
                 className="flex items-center gap-1 mt-3 ml-13"
                 initial={{ opacity: 0 }}
@@ -267,34 +285,26 @@ export function StoryReader({ story, language, onLanguageChange, onBack, onCompl
                   />
                 ))}
                 <span className="text-xs ml-2 opacity-60" style={{ color: story.accentColor }}>
-                  {isLoading ? '...' : `${ui.reading[language]}...`}
+                  {`${ui.reading[language]}...`}
                 </span>
               </motion.div>
             )}
-            {/* Autoplay blocked — show tap-to-listen button (user gesture will unlock audio) */}
-            {isBlocked && (
-              <motion.button
-                onClick={retry}
-                className="mt-3 ml-13 inline-flex items-center gap-2 px-4 py-2 rounded-full text-white shadow-md hover:scale-105 active:scale-95 transition-transform"
-                style={{ background: story.accentColor }}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileTap={{ scale: 0.95 }}
+            {/* Narration not supported — show helpful message */}
+            {!isSupported && (
+              <motion.div
+                className="mt-3 ml-13 flex items-center gap-2 text-xs opacity-60"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{ color: story.accentColor }}
               >
-                <motion.span
-                  className="text-base"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                >
-                  🔊
-                </motion.span>
-                <span className={`text-sm font-bold ${arabicFontClass}`}>
-                  {language === 'en' && 'Tap to listen'}
-                  {language === 'ms' && 'Tekan untuk dengar'}
-                  {language === 'id' && 'Tekan untuk mendengar'}
-                  {language === 'ar' && 'اضغط للاستماع'}
+                <span className="text-base">📵</span>
+                <span className={arabicFontClass}>
+                  {language === 'en' && 'Audio narration not supported on this device'}
+                  {language === 'ms' && 'Narasi audio tidak disokong pada peranti ini'}
+                  {language === 'id' && 'Narasi audio tidak didukung pada perangkat ini'}
+                  {language === 'ar' && 'الصوت غير مدعوم على هذا الجهاز'}
                 </span>
-              </motion.button>
+              </motion.div>
             )}
           </motion.div>
         </AnimatePresence>

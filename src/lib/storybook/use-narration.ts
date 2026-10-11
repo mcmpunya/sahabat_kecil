@@ -7,35 +7,38 @@ interface UseNarrationResult {
   narrate: (text: string, lang: Language) => void;
   stop: () => void;
   isNarrating: boolean;
-  isLoading: boolean;
-  isBlocked: boolean;            // True if browser blocked autoplay
-  retry: () => void;             // User-initiated retry to unlock audio
+  isSupported: boolean;
+  hasNativeVoice: boolean;
 }
 
 const LANG_CODE_MAP: Record<Language, string> = {
   en: 'en-US',
-  ms: 'ms-MY',
-  id: 'id-ID',
-  ar: 'ar-SA',
+  ms: 'ms-MY',  // Malay (Malaysia)
+  id: 'id-ID',  // Indonesian
+  ar: 'ar-SA',  // Arabic (Saudi Arabia)
 };
 
+// Languages we prefer for each target, in priority order
 const VOICE_PREFERENCE: Record<Language, string[]> = {
   en: ['en-US', 'en-GB', 'en-AU', 'en'],
   ms: ['ms-MY', 'ms'],
-  id: ['id-ID', 'id', 'ms-MY'],
-  ar: ['ar-SA', 'ar-EG', 'ar', 'ar-AE'],
+  id: ['id-ID', 'id', 'ms-MY'],  // Indonesian, fall back to Malay
+  ar: ['ar-SA', 'ar-EG', 'ar', 'ar-AE', 'ar-MA'],
 };
 
 function isWebSpeechAvailable(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
 }
 
+// Pick the best available native voice on the device for the target language.
+// Returns null if no native voice exists for that language.
 function pickNativeVoice(
   voices: SpeechSynthesisVoice[],
   lang: Language
 ): SpeechSynthesisVoice | null {
   const preferred = VOICE_PREFERENCE[lang] || [];
 
+  // Try Google voices first (often higher quality on Chrome)
   for (const code of preferred) {
     const voice = voices.find(
       (v) =>
@@ -45,6 +48,7 @@ function pickNativeVoice(
     if (voice) return voice;
   }
 
+  // Then any voice for that language
   for (const code of preferred) {
     const voice = voices.find((v) =>
       v.lang.toLowerCase().startsWith(code.toLowerCase())
@@ -57,68 +61,18 @@ function pickNativeVoice(
 
 export function useNarration(): UseNarrationResult {
   const [isNarrating, setIsNarrating] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const currentRequestIdRef = useRef<number>(0);
-  const lastRequestRef = useRef<{ text: string; lang: Language } | null>(null);
-  const audioUnlockedRef = useRef(false);
+  const supported = isWebSpeechAvailable();
 
-  // Pre-warm an AudioContext on first user interaction to bypass autoplay policies.
-  // Many browsers (Safari especially) require a user gesture before any audio can play.
+  // Load voices and update when voices change (some browsers load async)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const unlockAudio = () => {
-      if (audioUnlockedRef.current) return;
-      try {
-        // Create and immediately resume an AudioContext to unlock audio
-        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (AudioContextClass) {
-          const ctx = new AudioContextClass();
-          if (ctx.state === 'suspended') {
-            ctx.resume().catch(() => {});
-          }
-          // Create a silent buffer to truly unlock
-          const buffer = ctx.createBuffer(1, 1, 22050);
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ctx.destination);
-          source.start(0);
-        }
-        // Also unlock HTMLAudioElement by playing a tiny silent data URI
-        const silentAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDA///////////////////////////////////////////////////////////////////////////////////////////////AAAA');
-        silentAudio.volume = 0;
-        silentAudio.play().then(() => {
-          silentAudio.pause();
-          audioUnlockedRef.current = true;
-        }).catch(() => {});
-      } catch (e) {
-        // ignore
-      }
-    };
-
-    // Listen for first user interaction
-    const events = ['touchstart', 'click', 'keydown'];
-    events.forEach((evt) => {
-      window.addEventListener(evt, unlockAudio, { once: false, passive: true });
-    });
-
-    return () => {
-      events.forEach((evt) => {
-        window.removeEventListener(evt, unlockAudio);
-      });
-    };
-  }, []);
-
-  // Load voices
-  useEffect(() => {
-    if (!isWebSpeechAvailable()) return;
+    if (!supported) return;
 
     const loadVoices = () => {
-      voicesRef.current = window.speechSynthesis.getVoices();
+      const v = window.speechSynthesis.getVoices();
+      setVoices(v);
     };
 
     loadVoices();
@@ -127,157 +81,79 @@ export function useNarration(): UseNarrationResult {
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, []);
+  }, [supported]);
 
   const stop = useCallback(() => {
-    currentRequestIdRef.current++;
-    if (isWebSpeechAvailable()) {
-      window.speechSynthesis.cancel();
-    }
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+    if (!supported) return;
+    window.speechSynthesis.cancel();
+    currentUtteranceRef.current = null;
     setIsNarrating(false);
-    setIsLoading(false);
-    setIsBlocked(false);
-  }, []);
+  }, [supported]);
 
-  const narrateWithWebSpeech = useCallback(
-    (text: string, lang: Language, voice: SpeechSynthesisVoice) => {
-      if (!isWebSpeechAvailable()) return;
+  const narrate = useCallback(
+    (text: string, lang: Language) => {
+      if (!supported) return;
 
+      // Stop any current playback
       window.speechSynthesis.cancel();
+
+      // Make sure voices are loaded
+      const availableVoices = voices.length > 0
+        ? voices
+        : window.speechSynthesis.getVoices();
+
+      const nativeVoice = pickNativeVoice(availableVoices, lang);
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = lang === 'ar' ? 0.8 : 0.85;
       utterance.pitch = 1.1;
       utterance.volume = 1;
       utterance.lang = LANG_CODE_MAP[lang];
-      utterance.voice = voice;
 
-      utterance.onstart = () => {
-        setIsLoading(false);
-        setIsNarrating(true);
-        setIsBlocked(false);
+      if (nativeVoice) {
+        utterance.voice = nativeVoice;
+      } else if (availableVoices.length > 0) {
+        // No native voice for this language — use the first available voice
+        // as a last resort. The pronunciation won't be perfect, but at least
+        // the child can hear something and follow along with the text.
+        // For Arabic specifically, this may sound like gibberish, so we slow it down more.
+        utterance.voice = availableVoices[0];
+        utterance.rate = lang === 'ar' ? 0.6 : 0.8;
+      }
+
+      utterance.onstart = () => setIsNarrating(true);
+      utterance.onend = () => {
+        setIsNarrating(false);
+        currentUtteranceRef.current = null;
       };
-      utterance.onend = () => setIsNarrating(false);
-      utterance.onerror = () => setIsNarrating(false);
+      utterance.onerror = (e) => {
+        console.warn('Speech synthesis error:', e);
+        setIsNarrating(false);
+        currentUtteranceRef.current = null;
+      };
 
+      currentUtteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
     },
-    []
+    [supported, voices]
   );
 
-  const narrateWithAPI = useCallback(async (text: string, lang: Language, requestId: number) => {
-    try {
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, language: lang }),
-      });
-
-      if (requestId !== currentRequestIdRef.current) return;
-
-      if (!response.ok) {
-        throw new Error(`TTS API failed: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-
-      if (requestId !== currentRequestIdRef.current) return;
-
-      const audioUrl = URL.createObjectURL(blob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-        setIsNarrating(false);
-      };
-      audio.onerror = () => {
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-        setIsNarrating(false);
-      };
-
-      setIsLoading(false);
-      setIsNarrating(true);
-
-      // Try to play, handle autoplay rejection
-      try {
-        await audio.play();
-        setIsBlocked(false);
-      } catch (playError) {
-        console.warn('Audio autoplay blocked by browser. User interaction required.', playError);
-        setIsNarrating(false);
-        setIsBlocked(true);
-        // The retry() function will re-call .play() within a user gesture
-      }
-    } catch (error) {
-      console.warn('z-ai TTS fallback failed:', error);
-      if (requestId !== currentRequestIdRef.current) return;
-      setIsLoading(false);
-      setIsNarrating(false);
-    }
-  }, []);
-
-  const narrate = useCallback(
-    (text: string, lang: Language) => {
-      stop();
-      lastRequestRef.current = { text, lang };
-      const requestId = ++currentRequestIdRef.current;
-
-      if (isWebSpeechAvailable()) {
-        if (voicesRef.current.length === 0) {
-          voicesRef.current = window.speechSynthesis.getVoices();
-        }
-
-        const nativeVoice = pickNativeVoice(voicesRef.current, lang);
-        if (nativeVoice) {
-          narrateWithWebSpeech(text, lang, nativeVoice);
-          return;
-        }
-      }
-
-      setIsLoading(true);
-      narrateWithAPI(text, lang, requestId);
-    },
-    [stop, narrateWithWebSpeech, narrateWithAPI]
-  );
-
-  // User-initiated retry — call this from a click handler to bypass autoplay block
-  const retry = useCallback(() => {
-    const last = lastRequestRef.current;
-    if (!last) return;
-
-    if (audioRef.current) {
-      // We already have the audio loaded, just need to play within gesture
-      setIsBlocked(false);
-      setIsNarrating(true);
-      audioRef.current.play().catch(() => {
-        setIsBlocked(true);
-        setIsNarrating(false);
-      });
-    } else {
-      // Re-fetch and play
-      narrate(last.text, last.lang);
-    }
-  }, [narrate]);
-
-  // Cleanup
+  // Cleanup on unmount
   useEffect(() => {
+    if (!supported) return;
     return () => {
-      if (isWebSpeechAvailable()) {
-        window.speechSynthesis.cancel();
-      }
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      window.speechSynthesis.cancel();
     };
-  }, []);
+  }, [supported]);
 
-  return { narrate, stop, isNarrating, isLoading, isBlocked, retry };
+  // Check if a native voice exists for the current language
+  const hasNativeVoice = supported && pickNativeVoice(voices, 'ar') !== null;
+
+  return {
+    narrate,
+    stop,
+    isNarrating,
+    isSupported: supported,
+    hasNativeVoice,
+  };
 }
